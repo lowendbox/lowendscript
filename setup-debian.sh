@@ -139,6 +139,7 @@ END
 
 function install_nginx {
     check_install nginx nginx
+    invoke-rc.d nginx restart
 }
 
 function install_php {
