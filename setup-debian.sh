@@ -57,14 +57,15 @@ function get_domain_name() {
     [ -z "$lowest" ] && echo "$domain" || echo "$lowest"
 }
 
-function get_new_password() {
-    choices='1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    while [ "${n:=1}" -le 8 ]
-    do
-        pass="$pass${choices:$(($RANDOM%${#choices})):1}"
-        n=$((n+1))
-    done
-    echo $pass
+function get_password() {
+    # Check whether our local salt is present.
+    SALT=/var/lib/radom_salt
+    if [ ! -f "$SALT" ]
+    then
+        head -c 512 /dev/urandom > "$SALT"
+    fi
+    password=`(cat "$SALT"; echo $1) | md5sum | base64`
+    echo ${password:0:13}
 }
 
 function install_dash {
@@ -128,7 +129,7 @@ END
     invoke-rc.d mysql start
 
     # Generating a new password for the root user.
-    passwd=`get_new_password`
+    passwd=`get_password root@mysql`
     mysqladmin password "$passwd"
     cat > ~/.my.cnf <<END
 [client]
@@ -139,6 +140,12 @@ END
 
 function install_nginx {
     check_install nginx nginx
+    
+    # Need to increase the bucket size for Debian 5.
+    cat > /etc/nginx/conf.d/lowendbox.conf <<END
+server_names_hash_bucket_size 64;
+END
+
     invoke-rc.d nginx restart
 }
 
@@ -287,13 +294,14 @@ function install_wordpress {
     chown root:root -R "/var/www/$1"
 
     # Setting up the MySQL database
-    passwd=`get_new_password`
+    dbname=`echo $1 | tr . _`
     userid=`get_domain_name $1`
+    passwd=`get_password "$userid@mysql"`
     cp "/var/www/$1/wp-config-sample.php" "/var/www/$1/wp-config.php"
-    sed -i "s/database_name_here/$1/; s/username_here/$userid/; s/password_here/$passwd/" \
+    sed -i "s/database_name_here/$dbname/; s/username_here/$userid/; s/password_here/$passwd/" \
         "/var/www/$1/wp-config.php"
     mysqladmin create "$1"
-    echo "GRANT ALL PRIVILEGES ON \`$1\`.* to \`$userid\`@localhost IDENTIFIED BY '$passwd';" | \
+    echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@localhost IDENTIFIED BY '$passwd';" | \
         mysql
 
     # Setting up Nginx mapping
@@ -338,10 +346,11 @@ function remove_unneeded {
     # templates.
     check_remove /usr/sbin/apache2 'apache2*'
     check_remove /usr/sbin/named bind9
-    check_remove /usr/sbin/smbd samba
+    check_remove /usr/sbin/smbd 'samba*'
+    check_remove /usr/sbin/nscd nscd
 
     # Need to stop sendmail as removing the package does not seem to stop it.
-    if [ -f /etc/init.d/sendmail ]
+    if [ -f /usr/lib/sm.bin/smtpd ]
     then
         invoke-rc.d sendmail stop
         check_remove /usr/lib/sm.bin/smtpd 'sendmail*'
