@@ -300,7 +300,7 @@ function install_wordpress {
     cp "/var/www/$1/wp-config-sample.php" "/var/www/$1/wp-config.php"
     sed -i "s/database_name_here/$dbname/; s/username_here/$userid/; s/password_here/$passwd/" \
         "/var/www/$1/wp-config.php"
-    mysqladmin create "$1"
+    mysqladmin create "$dbname"
     echo "GRANT ALL PRIVILEGES ON \`$dbname\`.* TO \`$userid\`@localhost IDENTIFIED BY '$passwd';" | \
         mysql
 
