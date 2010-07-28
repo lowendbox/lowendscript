@@ -63,6 +63,7 @@ function get_password() {
     if [ ! -f "$SALT" ]
     then
         head -c 512 /dev/urandom > "$SALT"
+        chmod 400 "$SALT"
     fi
     password=`(cat "$SALT"; echo $1) | md5sum | base64`
     echo ${password:0:13}
