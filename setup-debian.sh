@@ -137,6 +137,7 @@ END
 user = root
 password = $passwd
 END
+    chmod 600 ~/.my.cnf
 }
 
 function install_nginx {
