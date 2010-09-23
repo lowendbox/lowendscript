@@ -298,6 +298,8 @@ function install_wordpress {
     # Setting up the MySQL database
     dbname=`echo $1 | tr . _`
     userid=`get_domain_name $1`
+    # MySQL userid cannot be more than 15 characters long
+    userid="${userid:0:15}"
     passwd=`get_password "$userid@mysql"`
     cp "/var/www/$1/wp-config-sample.php" "/var/www/$1/wp-config.php"
     sed -i "s/database_name_here/$dbname/; s/username_here/$userid/; s/password_here/$passwd/" \
