@@ -231,7 +231,9 @@ location ~ \.php$ {
 
     fastcgi_index index.php;
     fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-    fastcgi_pass unix:/var/run/www/php.sock;
+    if (-f $request_filename) {
+        fastcgi_pass unix:/var/run/www/php.sock;
+    }
 }
 END
     update-rc.d php-cgi defaults
